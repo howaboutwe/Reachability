@@ -517,6 +517,9 @@ static void TMReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkRea
 
 -(void)reachabilityChanged:(SCNetworkReachabilityFlags)flags
 {
+    self.hasFlags = YES;
+    self.lastKnownFlags = flags;
+    
     if([self isReachableWithFlags:flags])
     {
         if(self.reachableBlock)
