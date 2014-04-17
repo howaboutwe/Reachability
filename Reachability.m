@@ -32,6 +32,8 @@ NSString *const kReachabilityChangedNotification = @"kReachabilityChangedNotific
 
 @interface Reachability ()
 
+@property (nonatomic, assign) BOOL hasFlags;
+@property (nonatomic, assign) SCNetworkReachabilityFlags lastKnownFlags;
 @property (nonatomic, assign) SCNetworkReachabilityRef  reachabilityRef;
 
 
@@ -333,14 +335,36 @@ static void TMReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkRea
     return connectionUP;
 }
 
+-(BOOL)syncFlags
+{
+    SCNetworkReachabilityFlags flags;
+    BOOL success = SCNetworkReachabilityGetFlags(reachabilityRef, &flags);
+    if (success) {
+        self.lastKnownFlags = flags;
+        self.hasFlags = YES;
+        return YES;
+    } else {
+        self.lastKnownFlags = 0;
+        self.hasFlags = NO;
+        return NO;
+    }
+}
+
+-(void)asyncUpdateFlags
+{
+    __weak Reachability *safeSelf = self;
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [safeSelf syncFlags];
+    });
+}
+
 -(BOOL)isReachable
 {
-    SCNetworkReachabilityFlags flags;  
+    [self asyncUpdateFlags];
+    if (!self.hasFlags)
+        return YES;
     
-    if(!SCNetworkReachabilityGetFlags(self.reachabilityRef, &flags))
-        return NO;
-    
-    return [self isReachableWithFlags:flags];
+    return [self isReachableWithFlags:self.lastKnownFlags];
 }
 
 -(BOOL)isReachableViaWWAN 
